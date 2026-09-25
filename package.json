@@ -1,6 +1,6 @@
 {
   "name": "memory-lancedb-pro",
-  "version": "4.2.1",
+  "version": "4.2.2",
   "type": "module",
   "description": "Capability-first LanceDB memory plugin for OpenClaw with hybrid retrieval, wiki tools, reflection/dreaming engines, and host interop (v4)",
   "main": "dist/index.js",
@@ -28,14 +28,14 @@
       "./dist/index.js"
     ],
     "install": {
-      "npmSpec": "@openclaw/memory-lancedb-pro",
-      "localPath": "extensions/memory-lancedb-pro",
+      "npmSpec": "memory-lancedb-pro",
+      "localPath": "extensions/memory-lancedb-pro-v4",
       "defaultChoice": "npm"
     }
   },
   "files": [
     "dist/",
-    "src/"
+    "openclaw.plugin.json"
   ],
   "dependencies": {
     "@lancedb/lancedb": "^0.33.0",
@@ -48,7 +48,8 @@
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "prepack": "node scripts/check-package.mjs"
   },
   "peerDependencies": {
     "openclaw": ">=2026.5.6"
