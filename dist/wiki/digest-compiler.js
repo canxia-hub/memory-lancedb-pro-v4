@@ -11,20 +11,18 @@
  *
  * Hooked into wiki_build / wiki_index tool chain for automatic production.
  *
- * IMPORTANT: This module is self-contained — it reads the vault path directly
- * rather than relying on wiki-store's WIKI_ROOT constant, so it works with
- * arbitrary vault paths (including test fixtures).
+ * IMPORTANT: DV-1 fix (4.2.3) — no longer inlines its own env-chain default.
+ * Resolves the vault root through wiki-store's single resolution point
+ * (config.vault.path > env > default) while still accepting explicit
+ * options.vaultPath overrides (test fixtures, arbitrary vault paths).
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { getWikiRoot } from './wiki-store.js';
 
 // ── Constants ──────────────────────────────────────────────────────────
 
-const HOME_DIR = process.env.HOME || process.env.USERPROFILE || '';
-const DEFAULT_WIKI_ROOT = process.env.WIKI_ROOT
-  || process.env.OPENCLAW_WIKI_ROOT
-  || (HOME_DIR ? `${HOME_DIR}/.openclaw/wiki` : '.openclaw/wiki');
 const AGENT_DIGEST_REL = '.openclaw-wiki/cache/agent-digest.json';
 const DIGEST_MAX_PAGES = 4;
 const DIGEST_MAX_CLAIMS_PER_PAGE = 2;
@@ -320,12 +318,12 @@ function scanDirectory(dirPath, prefix, pages) {
  * Compile wiki vault into agent-digest.json.
  *
  * @param {Object} options
- * @param {string} [options.vaultPath] - Wiki vault path (default: WIKI_ROOT env or hardcoded default)
+ * @param {string} [options.vaultPath] - Wiki vault path (default: configured wiki root)
  * @param {boolean} [options.dryRun] - If true, return digest without writing
  * @returns {Object} The compiled digest
  */
 export function compileDigest(options = {}) {
-  const vaultPath = options.vaultPath || DEFAULT_WIKI_ROOT;
+  const vaultPath = options.vaultPath || getWikiRoot();
   const dryRun = options.dryRun ?? false;
 
   // 1. Scan all wiki pages
@@ -394,7 +392,7 @@ export function compileDigest(options = {}) {
  * Check if digest cache exists and is fresh enough.
  */
 export function isDigestFresh(vaultPath, maxAgeMs = 3600000) {
-  const resolvedPath = vaultPath || DEFAULT_WIKI_ROOT;
+  const resolvedPath = vaultPath || getWikiRoot();
   const digestPath = path.join(resolvedPath, AGENT_DIGEST_REL);
   if (!fs.existsSync(digestPath)) return false;
 
@@ -413,7 +411,7 @@ export function isDigestFresh(vaultPath, maxAgeMs = 3600000) {
  * Compile digest if not fresh, or force recompile.
  */
 export function ensureDigest(options = {}) {
-  const vaultPath = options.vaultPath || DEFAULT_WIKI_ROOT;
+  const vaultPath = options.vaultPath || getWikiRoot();
   if (!options.force && isDigestFresh(vaultPath)) {
     const digestPath = path.join(vaultPath, AGENT_DIGEST_REL);
     try {

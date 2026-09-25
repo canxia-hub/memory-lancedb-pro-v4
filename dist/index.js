@@ -27,11 +27,14 @@ import { createHostEventsManager } from './interop/host-events.js';
 // Wiki supplement imports
 import { createWikiCorpusSupplement, createWikiPromptSectionBuilder } from './wiki/wiki-supplement.js';
 
+// Wiki vault root injection (DV-1 fix, 4.2.3)
+import { configureWikiRoot } from './wiki/wiki-store.js';
+
 // Wiki CLI registration
 import { registerWikiCli } from './wiki/wiki-command.js';
 
 // Phase 3: Plugin state persistence (openKeyedStore)
-import { initPluginState, setStats, isStateActive } from './state/plugin-state.js';
+import { initPluginState, setStats, isStateActive, isStateFallbackMode } from './state/plugin-state.js';
 
 // M2: Auto-memory hooks (capture/recall)
 import { registerAutoMemoryHooks } from './hooks/auto-memory.js';
@@ -82,6 +85,12 @@ function register(api) {
     const rawConfig = api.pluginConfig;
     const config = resolveConfig(rawConfig);
     const backendConfig = resolveMemoryBackendConfig(config);
+
+    // DV-1 fix (4.2.3): the wiki storage layer must honor the configured vault root.
+    // resolveConfig already implements the priority chain
+    // config.vault.path > env WIKI_ROOT/OPENCLAW_WIKI_ROOT > default $HOME/.openclaw/wiki;
+    // injecting it here makes it the single source for every wiki module (live bindings).
+    configureWikiRoot(config.vault?.path);
 
     api.logger.info('[memory-lancedb-pro] capability-ready (v3 / Phase 2)');
     api.logger.info(`  dbPath: ${backendConfig.dbPath}`);
@@ -194,7 +203,9 @@ function register(api) {
     // Phase 3: Initialize persistent state (fire-and-forget, non-blocking)
     void initPluginState(api, { fallbackDir: backendConfig.dbPath }).then((stateOk) => {
         if (stateOk) {
-            api.logger.info('[memory-lancedb-pro] state store active (openKeyedStore)');
+            // DV-2 fix (4.2.3): report the actual active mode instead of always claiming openKeyedStore.
+            const stateMode = isStateFallbackMode() ? 'file-fallback' : 'openKeyedStore';
+            api.logger.info(`[memory-lancedb-pro] state store active (${stateMode})`);
             void setStats({
                 dbPath: backendConfig.dbPath,
                 tableName: backendConfig.tableName,

@@ -7,7 +7,7 @@
 // Types (冻结契约)
 export * from './types.js';
 // Wiki Store (Phase W1)
-export { WIKI_ROOT, slugify, normalizeLinkTarget, resolveLinkToPath, parseFrontMatter, serializeFrontMatter, listCategories, getEntry, createEntry, updateEntry, deleteEntry, } from './wiki-store.js';
+export { WIKI_ROOT, configureWikiRoot, getWikiRoot, slugify, normalizeLinkTarget, resolveLinkToPath, parseFrontMatter, serializeFrontMatter, listCategories, getEntry, createEntry, updateEntry, deleteEntry, } from './wiki-store.js';
 // Wiki Doctor (Phase W1)
 export { checkWikiHealth, formatHealthReport, } from './wiki-doctor.js';
 // Wiki Index (Phase W2)

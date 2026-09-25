@@ -12,12 +12,34 @@ import { WIKI_CATEGORIES, } from './types.js';
 // Constants
 // ============================================================================
 /**
- * Wiki root directory - 可通过环境变量 WIKI_ROOT 覆盖
+ * Wiki root directory — 单一解析点（DV-1 修复，4.2.3）。
+ *
+ * 优先级链：register 时注入的 config.vault.path（configureWikiRoot）
+ *   > 环境变量 WIKI_ROOT / OPENCLAW_WIKI_ROOT
+ *   > 默认 $HOME/.openclaw/wiki
+ *
+ * 导出绑定为 `let`：所有 importer（doctor/index/sync-links/graph/traverse/
+ * hybrid/supplement/digest）通过 ESM live binding 在调用时读到已配置根，
+ * 不允许再各自内联 env 链旁路解析。
  */
 const HOME_DIR = process.env.HOME || process.env.USERPROFILE || '';
-export const WIKI_ROOT = process.env.WIKI_ROOT
+export let WIKI_ROOT = process.env.WIKI_ROOT
     || process.env.OPENCLAW_WIKI_ROOT
     || (HOME_DIR ? `${HOME_DIR}/.openclaw/wiki` : '.openclaw/wiki');
+/**
+ * 用已解析的插件配置覆盖 vault 根（config.vault.path）。
+ * 仅接受非空字符串；resolve-config 已实现 config > env > default 优先级，
+ * 因此这里无条件注入即可保持链条一致。
+ */
+export function configureWikiRoot(vaultPath) {
+    if (typeof vaultPath === 'string' && vaultPath.trim() !== '') {
+        WIKI_ROOT = vaultPath.trim();
+    }
+}
+/** 当前解析出的 wiki vault 根（供不希望直接绑定常量的模块使用）。 */
+export function getWikiRoot() {
+    return WIKI_ROOT;
+}
 /**
  * Category to template mapping (对照 Python CATEGORY_TO_TEMPLATE)
  */
