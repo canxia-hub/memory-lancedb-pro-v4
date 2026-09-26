@@ -36,13 +36,17 @@ function makeAssetsSchema(dim) {
         new Field('metadataJson', new Utf8(), false),
     ]);
 }
-// LanceDB dynamic import
+// LanceDB eager load（2026-09-26 生产补丁：宿主 source-capture 退役清理会删除物化文件，
+// 惰性 require 在清理后撞 MODULE_NOT_FOUND 并以 unhandled rejection 拖垮整个网关进程；
+// 模块加载期完成首次 require 后命中进程内模块缓存，capture 文件被删也不再受影响）
 const require = createRequire(import.meta.url);
-let lancedbModule = null;
+// Exclude network section from process.report to avoid slow reverse-DNS
+// lookups on first LanceDB load (can block event loop 100-250s on some hosts)
+try {
+    process.report.excludeNetwork = true;
+} catch { /* Node < 22 without the flag */ }
+const lancedbModule = require('@lancedb/lancedb');
 async function loadLanceDB() {
-    if (!lancedbModule) {
-        lancedbModule = require('@lancedb/lancedb');
-    }
     return lancedbModule;
 }
 // Escape SQL literal for safe queries

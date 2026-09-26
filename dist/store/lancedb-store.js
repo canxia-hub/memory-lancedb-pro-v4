@@ -38,19 +38,16 @@ function isLegacyVectorSchema(field) {
     const typeName = String(field.type ?? '');
     return /^List</.test(typeName) && !/FixedSizeList/.test(typeName);
 }
-// LanceDB dynamic import
+// LanceDB eager load（2026-09-26 生产补丁，原因同 asset-store.js）
 // Use createRequire for ESM compatibility with CommonJS modules
 const require = createRequire(import.meta.url);
-let lancedbModule = null;
+// Exclude network section from process.report to avoid slow reverse-DNS
+// lookups on first LanceDB load (can block event loop 100-250s on some hosts)
+try {
+    process.report.excludeNetwork = true;
+} catch { /* Node < 22 without the flag */ }
+const lancedbModule = require('@lancedb/lancedb');
 async function loadLanceDB() {
-    if (!lancedbModule) {
-        // Exclude network section from process.report to avoid slow reverse-DNS
-        // lookups on first LanceDB load (can block event loop 100-250s on some hosts)
-        try {
-            process.report.excludeNetwork = true;
-        } catch { /* Node < 22 without the flag */ }
-        lancedbModule = require('@lancedb/lancedb');
-    }
     return lancedbModule;
 }
 // Escape SQL literal for safe queries

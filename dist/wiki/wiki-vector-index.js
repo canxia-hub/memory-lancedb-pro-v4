@@ -16,14 +16,11 @@ import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { embedMultimodal, isZeroVector, cosineSimilarity } from '../retrieval/embedder.js';
 
-// LanceDB dynamic import (same pattern as lancedb-store.js)
+// LanceDB eager load（2026-09-26 生产补丁，原因同 asset-store.js）
 const require = createRequire(import.meta.url);
-let lancedbModule = null;
+try { process.report.excludeNetwork = true; } catch { /* Node < 22 */ }
+const lancedbModule = require('@lancedb/lancedb');
 async function loadLanceDB() {
-    if (!lancedbModule) {
-        try { process.report.excludeNetwork = true; } catch { /* Node < 22 */ }
-        lancedbModule = require('@lancedb/lancedb');
-    }
     return lancedbModule;
 }
 

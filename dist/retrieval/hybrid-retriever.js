@@ -14,11 +14,12 @@ import { embedMultimodal, cosineSimilarity, isZeroVector } from './embedder.js';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-let lancedbModule = null;
+// LanceDB eager load（2026-09-26 生产补丁，原因同 asset-store.js）
+try {
+    process.report.excludeNetwork = true;
+} catch { /* Node < 22 without the flag */ }
+const lancedbModule = require('@lancedb/lancedb');
 async function loadLanceDB() {
-    if (!lancedbModule) {
-        lancedbModule = require('@lancedb/lancedb');
-    }
     return lancedbModule;
 }
 

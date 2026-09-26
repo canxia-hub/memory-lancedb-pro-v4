@@ -10,7 +10,9 @@ import { existsSync, mkdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 let legacyLancedbModule = null;
-let currentLancedbModule = null;
+// 2026-09-26 生产补丁：current 模块改 eager（原因同 asset-store.js）；legacy 路径可能不存在，保持惰性
+try { process.report.excludeNetwork = true; } catch { /* Node < 22 */ }
+const currentLancedbModule = require('@lancedb/lancedb');
 async function loadLegacyLanceDB() {
     if (!legacyLancedbModule) {
         const legacyModulePath = join(homedir(), '.openclaw', 'workspace', 'memory-lancedb-pro-fork', 'node_modules', '@lancedb', 'lancedb');
@@ -19,9 +21,6 @@ async function loadLegacyLanceDB() {
     return legacyLancedbModule;
 }
 async function loadCurrentLanceDB() {
-    if (!currentLancedbModule) {
-        currentLancedbModule = require('@lancedb/lancedb');
-    }
     return currentLancedbModule;
 }
 function escapeSqlLiteral(value) {

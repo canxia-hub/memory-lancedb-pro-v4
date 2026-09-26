@@ -56,17 +56,14 @@ function makeWorkingMemorySchema() {
     ]);
 }
 
-// LanceDB dynamic import（与 asset-store 同款，避开 ESM/CJS 问题）
+// LanceDB eager load（2026-09-26 生产补丁，原因同 asset-store.js；createRequire 仅为避开 ESM/CJS 问题）
 const require = createRequire(import.meta.url);
-let lancedbModule = null;
+try {
+    process.report.excludeNetwork = true;
+}
+catch { /* Node < 22 */ }
+const lancedbModule = require('@lancedb/lancedb');
 async function loadLanceDB() {
-    if (!lancedbModule) {
-        try {
-            process.report.excludeNetwork = true;
-        }
-        catch { /* Node < 22 */ }
-        lancedbModule = require('@lancedb/lancedb');
-    }
     return lancedbModule;
 }
 
