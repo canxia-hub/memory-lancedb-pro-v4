@@ -35,6 +35,12 @@ export async function initPluginState(api, opts = {}) {
   if (_initialized && _stateStore) return true;
 
   try {
+    // local-host-state-compat-v1
+    if(typeof api?.runtime?.state?.openKeyedStore !== 'function') {
+      const unavailable = new Error('Host does not expose plugin keyed state');
+      unavailable.code = 'PLUGIN_STATE_UNAVAILABLE';
+      throw unavailable;
+    }
     _stateStore = await api.runtime.state.openKeyedStore({
       namespace: 'memory-lancedb-pro',
       maxEntries: 1000,
@@ -43,7 +49,8 @@ export async function initPluginState(api, opts = {}) {
     _initialized = true;
     return true;
   } catch (error) {
-    console.warn('[memory-lancedb-pro] openKeyedStore init failed:', error.message);
+    const expectedRestriction = error?.code === 'PLUGIN_TRUST_REFUSED' || error?.code === 'PLUGIN_STATE_UNAVAILABLE';
+    if(!expectedRestriction) console.warn('[memory-lancedb-pro] openKeyedStore init failed:', error.message);
     if (opts.fallbackDir) {
       try {
         const { createFileKeyedStore } = await import('./file-keyed-store.js');

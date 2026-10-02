@@ -1,6 +1,6 @@
 {
   "name": "memory-lancedb-pro",
-  "version": "4.2.4",
+  "version": "4.2.5",
   "type": "module",
   "description": "Capability-first LanceDB memory plugin for OpenClaw with hybrid retrieval, wiki tools, reflection/dreaming engines, and host interop (v4)",
   "main": "dist/index.js",

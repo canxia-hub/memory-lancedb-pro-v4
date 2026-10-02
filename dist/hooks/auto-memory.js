@@ -255,7 +255,7 @@ export function registerAutoMemoryHooks(api, deps) {
   // ── memory delete cascade: invalidate reflection cache ─────────────
   // When memories are deleted, the reflection cache may contain stale references.
   // We hook into the tool execution lifecycle to detect delete operations.
-  api.on('tool_after_execute', async (event, ctx) => {
+  api.on('after_tool_call', async (event, ctx) => {
     if (!event?.toolName) return;
     const toolName = event.toolName;
     if (toolName === 'memory_archive' || toolName === 'memory_forget') {
