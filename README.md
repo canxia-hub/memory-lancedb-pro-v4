@@ -4,12 +4,14 @@ Capability-first LanceDB memory plugin for OpenClaw — hybrid retrieval, Wiki k
 
 **Production-proven**: 767+ memories, 142 wiki pages vector-indexed, 4350 graph nodes / 5435 edges, 279/279 vitest passing, 48 working-memory task records migrated from the retired file layer.
 
+> **Latest (2026-10-03)**: **v4.2.5** adds OpenClaw **2026.9.7** host compatibility — verified in production. Clone `main` for the loadable version.
+
 ## Quick Facts
 
 | Item | Detail |
 |------|--------|
-| Version | 4.2.1 |
-| OpenClaw | >=2026.5.6 |
+| Version | 4.2.5 |
+| OpenClaw | >=2026.5.6 (verified through 2026.9.7) |
 | Tools | 27 (10 memory + 11 wiki + 6 working-memory) |
 | Tests | 279 (11 test files) |
 | DB | LanceDB 0.33 embedded |
@@ -331,6 +333,18 @@ node scripts/test-wiki-incremental-build.mjs
 > 参考实例：本仓库作者的 8 个 Agent 已于 2026-08-07 完成全套核心文件适配（87 处精确替换），旧 `.working-memory/` 文件层彻底退役，48 条任务记录迁入 `working_memory` 表。
 
 ## Changelog
+
+### 4.2.5 (2026-10-03)
+- **OpenClaw 2026.9.7 host 兼容**（生产热修复回移植）：宿主事件改名 `tool_after_execute` → `after_tool_call`（修复记忆删除级联 / reflection 缓存失效钩子不触发）；`openKeyedStore` 缺失或信任拒绝（`PLUGIN_STATE_UNAVAILABLE` / `PLUGIN_TRUST_REFUSED`）时静默回退插件自有文件 keyed store（local-host-state-compat-v1），信任与权限姿态不变。
+
+### 4.2.4 (2026-09-26)
+- **store**：模块初始化时即 eager-load `@lancedb/lancedb`（生产热修复回移植），消除首次调用冷启动抖动。
+
+### 4.2.3 (2026-09-24)
+- **wiki**：honor config vault root（DV-1）；state-store 日志去歧义（DV-2）。
+
+### 4.2.2 (2026-09)
+- **pack**：manifest 纳入 `files`、真实 `npmSpec`、版本同步、prepack 校验；移除 3 个无版本号 lock 条目（修复 npm install `Invalid Version` 崩溃）。
 
 ### 4.2.1 (2026-09-02)
 - **memory_promote 修复**：晋升只更新 LanceDB metadata（`metadata.layer` + `metadata.memory_layer` + `state`），不再写入 MEMORY.md managed block；durable 状态由 `memory_stats` 的 layer 统计体现。
