@@ -9,7 +9,7 @@
  * - closeAllMemorySearchManagers() supported for host cleanup
  */
 import { resolveMemoryBackendConfig } from '../config/resolve-backend-config.js';
-import { createSearchManager, } from '../retrieval/search-manager.js';
+import { initializeToolContext, getSearchManager } from '../tools/register.js';
 let _runtime = null;
 let _config = null;
 let _backendConfig = null;
@@ -17,16 +17,15 @@ let _searchManager = null;
 export function createMemoryCapabilityRuntime(options) {
     _config = options.config;
     _backendConfig = options.backendConfig ?? resolveMemoryBackendConfig(options.config);
-    _searchManager = createSearchManager(_config, _backendConfig);
+    _searchManager = null;
     let _initialized = false;
     async function ensureInitialized() {
         if (_initialized) {
             return;
         }
-        if (!_searchManager) {
-            throw new Error('Search manager not created');
-        }
-        await _searchManager.initialize();
+        await initializeToolContext({ config: _config, backendConfig: _backendConfig });
+        _searchManager = getSearchManager();
+        if (!_searchManager) throw new Error('Shared search manager not created');
         _initialized = true;
     }
     const runtime = {

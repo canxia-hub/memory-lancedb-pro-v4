@@ -33,16 +33,17 @@ let _legacyMigrationManager = null;
 /**
  * Initialize tool context (called by plugin register).
  */
+export function configureToolContext(context) {
+    _toolContext = context;
+    _config = context.config;
+    _backendConfig = context.backendConfig;
+}
 export async function initializeToolContext(context) {
     _toolContext = context;
     _config = context.config;
     _backendConfig = context.backendConfig;
-    if (_store && _searchManager) {
-        return;
-    }
-    if (_toolContextInitPromise) {
-        return _toolContextInitPromise;
-    }
+    if (_toolContextInitPromise) return _toolContextInitPromise;
+    if (_store && _searchManager) return;
     _toolContextInitPromise = (async () => {
         // CRITICAL FIX: Create ONE shared store instance
         _store = createLanceDBStore(context.backendConfig);
@@ -84,7 +85,8 @@ export async function initializeToolContext(context) {
     });
     return _toolContextInitPromise;
 }
-async function ensureToolContextReady() {
+export async function ensureToolContextReady() {
+    if (_toolContextInitPromise) return _toolContextInitPromise;
     if (_store && _searchManager) {
         return;
     }
@@ -97,6 +99,7 @@ async function ensureToolContextReady() {
  * Close tool context (called by plugin reload/cleanup).
  */
 export async function closeToolContext() {
+    if (_toolContextInitPromise) await _toolContextInitPromise.catch(() => {});
     await closeRecallTool();
     await closeStoreTool();
     // Phase C: Close asset store

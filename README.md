@@ -2,7 +2,7 @@
 
 Capability-first LanceDB memory plugin for OpenClaw — hybrid retrieval, Wiki knowledge graph with vector search, per-agent working-memory（工作任务）lanes, and incremental build.
 
-**Production-proven**: 767+ memories, 142 wiki pages vector-indexed, 4350 graph nodes / 5435 edges, 279/279 vitest passing, 48 working-memory task records migrated from the retired file layer.
+**Production-proven**: 767+ memories, 142 wiki pages vector-indexed, 4350 graph nodes / 5435 edges, 282/282 vitest passing, 48 working-memory task records migrated from the retired file layer.
 
 > **Latest (2026-10-03)**: **v4.2.5** adds OpenClaw **2026.9.7** host compatibility — verified in production. Clone `main` for the loadable version.
 
@@ -10,10 +10,10 @@ Capability-first LanceDB memory plugin for OpenClaw — hybrid retrieval, Wiki k
 
 | Item | Detail |
 |------|--------|
-| Version | 4.2.5 |
-| OpenClaw | >=2026.5.6 (verified through 2026.9.7) |
+| Version | 4.2.3-local.20261111 |
+| OpenClaw | >=2026.5.6 (verified through 2026.11.3) |
 | Tools | 27 (10 memory + 11 wiki + 6 working-memory) |
-| Tests | 279 (11 test files) |
+| Tests | 282 (11 test files) |
 | DB | LanceDB 0.33 embedded |
 | Embedding | 2560-dim (DashScope tongyi-embedding-vision-flash) |
 | Tables | `memories` + `wiki_pages` + `working_memory` (fully isolated) |

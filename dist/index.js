@@ -17,7 +17,7 @@ import { resolveConfig } from './config/resolve-config.js';
 import { resolveMemoryBackendConfig } from './config/resolve-backend-config.js';
 
 // Tool registration
-import { registerAllMemoryTools, initializeToolContext, getStore, getPluginConfig, getBackendConfig } from './tools/register.js';
+import { registerAllMemoryTools, configureToolContext, initializeToolContext, closeToolContext, getStore, getPluginConfig, getBackendConfig } from './tools/register.js';
 
 // Interop imports
 import { createMemoryCapabilityRuntime } from './interop/memory-capability.js';
@@ -109,7 +109,15 @@ function register(api) {
     });
     api.logger.info('[memory-lancedb-pro] memory tools registered');
 
-    void initializeToolContext({ config, backendConfig });
+    // Restore adaptation: no database/index initialization on Gateway registration.
+    configureToolContext({ config, backendConfig });
+    api.lifecycle?.onDispose(async () => {
+        await closeToolContext();
+        _capabilityRuntime = null;
+        _eventsManager = null;
+        _promptBuilder = null;
+        _initialized = false;
+    });
     const primaryWorkspaceRoot = api.config?.agents?.defaults?.workspace ?? process.cwd();
     api.logger.info(`[memory-lancedb-pro] workspace root resolved: ${primaryWorkspaceRoot}`);
 
@@ -227,9 +235,9 @@ function register(api) {
 
             // Lazy embedder wrapper for hooks (embedMultimodal is sync-importable)
             const hookEmbedder = {
-                async embed(text) {
+                async embed(text, options = {}) {
                     const { embedMultimodal } = await import('./retrieval/embedder.js');
-                    const result = await embedMultimodal({ text }, { ...embeddingConfig, dimension: embeddingDimension });
+                    const result = await embedMultimodal({ text }, { ...embeddingConfig, dimension: embeddingDimension }, options);
                     return result.embedding;
                 },
             };
@@ -240,6 +248,7 @@ function register(api) {
 
             registerAutoMemoryHooks(api, {
                 getStore: hookStoreGetter,
+                ensureReady: () => initializeToolContext({ config, backendConfig }),
                 getEmbedder: hookEmbedderGetter,
                 pluginConfig: rawConfig,
             });

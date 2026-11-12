@@ -97,7 +97,7 @@ export function buildEmbeddingAvailability(config = {}) {
   };
 }
 
-export async function embedMultimodal(input = {}, config = {}) {
+export async function embedMultimodal(input = {}, config = {}, options = {}) {
   const resolved = resolveConfig(config);
   if (String(resolved.provider).toLowerCase() !== 'dashscope') {
     throw new Error(`Unsupported embedding provider: ${resolved.provider}`);
@@ -120,6 +120,7 @@ export async function embedMultimodal(input = {}, config = {}) {
   };
   const response = await fetch(resolved.baseUrl, {
     method: 'POST',
+    signal: options.signal,
     headers: {
       Authorization: `Bearer ${resolved.apiKey}`,
       'Content-Type': 'application/json',

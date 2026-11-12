@@ -8,7 +8,7 @@
  * Design decisions:
  * - autoRecall default false (灰度原则)
  * - Memory sub-session anti-recursion: sessionKey with reflection/distiller/dreaming prefix → skip
- * - Recall timeout: 3s (fail-safe, don't stall agent startup)
+ * - Recall timeout: 6s; abort stalled embedding; coalesce duplicate requests
  */
 
 import { dropMediaNoteLines } from '../capture/sanitization.js';
@@ -32,7 +32,10 @@ import { registerReflectionInjector } from '../reflection/injector.js';
 
 // ── Constants ──────────────────────────────────────────────────────────
 
-const DEFAULT_AUTO_RECALL_TIMEOUT_MS = 3000;
+const DEFAULT_AUTO_RECALL_TIMEOUT_MS = 6000;
+const RECALL_EMBEDDING_CACHE_TTL_MS = 60_000;
+const RECALL_EMBEDDING_CACHE_LIMIT = 16;
+const RECALL_INFLIGHT_LIMIT = 2;
 const DEFAULT_AUTO_RECALL_OVERFETCH_LIMIT = 10;
 const DEFAULT_AUTO_RECALL_RESULT_CAP = 3;
 
@@ -88,11 +91,19 @@ function normalizeAgentId(agentId) {
  * Simple timeout wrapper for async operations.
  */
 function runWithTimeout({ timeoutMs, task }) {
+  const controller = new AbortController();
   let timer;
   const timeoutPromise = new Promise((_, reject) => {
-    timer = setTimeout(() => reject(new Error(`Timeout after ${timeoutMs}ms`)), timeoutMs);
+    timer = setTimeout(() => {
+      const error = new Error(`Timeout after ${timeoutMs}ms`);
+      reject(error);
+      controller.abort(error);
+    }, timeoutMs);
   });
-  return Promise.race([task(), timeoutPromise]).finally(() => clearTimeout(timer));
+  return Promise.race([
+    Promise.resolve().then(() => task(controller.signal)),
+    timeoutPromise,
+  ]).finally(() => clearTimeout(timer));
 }
 
 /**
@@ -119,6 +130,40 @@ function resolveHookConfig(pluginConfig) {
  */
 export function registerAutoMemoryHooks(api, deps) {
   const { getStore, getEmbedder, pluginConfig } = deps;
+  // Cache vectors only, never memory text/results; shared retrieval remains current.
+  const embeddingCache = new Map();
+  const inflightRecalls = new Map();
+  const recall = (agentId, query, db, embedder, cfg) => {
+    const key = JSON.stringify([agentId, query, cfg.recallMinScore]);
+    if (inflightRecalls.has(key)) return inflightRecalls.get(key);
+    if (inflightRecalls.size >= RECALL_INFLIGHT_LIMIT) return Promise.resolve([]);
+    const work = runWithTimeout({
+      timeoutMs: DEFAULT_AUTO_RECALL_TIMEOUT_MS,
+      task: async (signal) => {
+        const now = Date.now();
+        for (const [k, entry] of embeddingCache) {
+          if (entry.expiresAt <= now) embeddingCache.delete(k);
+        }
+        let vector = embeddingCache.get(query)?.vector;
+        if (!vector) {
+          vector = await embedder.embed(query, { signal });
+          signal.throwIfAborted();
+          if (!Array.isArray(vector) || vector.length === 0) return [];
+          embeddingCache.set(query, { vector, expiresAt: Date.now() + RECALL_EMBEDDING_CACHE_TTL_MS });
+          while (embeddingCache.size > RECALL_EMBEDDING_CACHE_LIMIT) {
+            embeddingCache.delete(embeddingCache.keys().next().value);
+          }
+        }
+        signal.throwIfAborted();
+        // Native LanceDB search has no abort API; do not begin it after deadline.
+        return await db.search(agentId, vector, DEFAULT_AUTO_RECALL_OVERFETCH_LIMIT, cfg.recallMinScore);
+      },
+    });
+    inflightRecalls.set(key, work);
+    const release = () => { if (inflightRecalls.get(key) === work) inflightRecalls.delete(key); };
+    work.then(release, release);
+    return work;
+  };
 
   // ── Reflection infrastructure ──────────────────────────────────────
   const reflectionConfig = normalizeReflectionConfig(pluginConfig);
@@ -145,12 +190,13 @@ export function registerAutoMemoryHooks(api, deps) {
     if (!agentId) return undefined;
 
     // Anti-recursion: skip memory sub-sessions
-    if (isMemorySubSession(ctx.sessionKey)) return undefined;
+    if (isMemorySubSession(ctx.sessionKey) || ctx.sessionKey?.includes(':internal-session-effects:')) return undefined;
 
     // Short message gate
     if (!event.prompt || event.prompt.length < 5) return undefined;
 
     try {
+      await deps.ensureReady?.();
       const db = getStore();
       const embedder = getEmbedder();
       if (!db || !embedder) return undefined;
@@ -164,17 +210,10 @@ export function registerAutoMemoryHooks(api, deps) {
       );
       if (!recallQuery) return undefined;
 
-      const recall = await runWithTimeout({
-        timeoutMs: DEFAULT_AUTO_RECALL_TIMEOUT_MS,
-        task: async () => {
-          const vector = await embedder.embed(recallQuery);
-          // Overfetch to compensate for sludge filtering
-          return await db.search(agentId, vector, DEFAULT_AUTO_RECALL_OVERFETCH_LIMIT, cfg.recallMinScore);
-        },
-      });
+      const recalled = await recall(agentId, recallQuery, db, embedder, cfg);
 
       // Filter contaminated memories, then cap
-      const cleaned = cleanMemorySearchResults(recall);
+      const cleaned = cleanMemorySearchResults(recalled);
       const cleanResults = cleaned
         .map(({ result, text }) => ({ category: (result.entry ?? result).category ?? 'other', text }))
         .slice(0, DEFAULT_AUTO_RECALL_RESULT_CAP);
@@ -219,6 +258,7 @@ export function registerAutoMemoryHooks(api, deps) {
       // Acquire lane slot (bounded concurrency per agent)
       const release = await reflectionLaneManager.acquire(agentId);
       try {
+        await deps.ensureReady?.();
         await runReflectionPipeline({
           api,
           agentId,

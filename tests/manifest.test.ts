@@ -16,7 +16,7 @@ describe("Plugin package.json", () => {
 
   it("has correct identity", () => {
     expect(pkg.name).toBe("memory-lancedb-pro");
-    expect(pkg.version).toBe("4.2.1");
+    expect(pkg.version).toBe("4.2.3-local.20261111");
     expect(pkg.type).toBe("module");
   });
 
@@ -27,7 +27,7 @@ describe("Plugin package.json", () => {
   it("has openclaw install metadata", () => {
     expect(pkg.openclaw).toBeDefined();
     expect(pkg.openclaw.install).toBeDefined();
-    expect(pkg.openclaw.install.npmSpec).toBe("@openclaw/memory-lancedb-pro");
+    expect(pkg.openclaw.install.npmSpec).toBe("memory-lancedb-pro");
   });
 
   it("has required scripts", () => {
@@ -49,7 +49,7 @@ describe("openclaw.plugin.json manifest", () => {
 
   it("has correct id and version", () => {
     expect(manifest.id).toBe("memory-lancedb-pro");
-    expect(manifest.version).toBe("4.2.1");
+    expect(manifest.version).toBe("4.2.3-local.20261111");
     expect(manifest.kind).toBe("memory");
   });
 

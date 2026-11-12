@@ -1,7 +1,7 @@
 {
   "id": "memory-lancedb-pro",
   "name": "Memory LanceDB Pro",
-  "version": "4.2.5",
+  "version": "4.2.3-local.20261111",
   "kind": "memory",
   "description": "Capability-first LanceDB memory plugin with hybrid retrieval, wiki tools, and host interop (v3)",
   "configSchema": {
